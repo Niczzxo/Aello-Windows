@@ -1,0 +1,53 @@
+# Aello for Windows — unsigned release build (proven Gili pattern).
+#
+# Trigger: push a tag v* (e.g. v0.1.0). The workflow builds the Tauri app
+# on windows-latest and publishes a GitHub release on that tag with the
+# NSIS installer (.exe) attached. Unsigned: SmartScreen will warn on
+# first install — accepted for testing, same as the Gili unsigned builds.
+# No signing key, no Node/npm step (the frontend is framework-free files
+# under src/, no build step). Never enable auto-update or signing here
+# without a user decision.
+#
+# NOTE on tag names (deliberate, same as the proven Gili pattern): the
+# trigger above matches tags like v0.1.0, but `tagName: __VERSION__`
+# below makes tauri-action create the GitHub release on tag 0.1.0
+# (without the `v` — __VERSION__ is the version from Cargo.toml).
+# The two tags are different names for the same release; do not "fix"
+# one to match the other.
+name: Release Aello Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Build Tauri App & Publish Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: __VERSION__
+          releaseName: 'Aello v__VERSION__ for Windows'
+          releaseBody: 'Aello for Windows — unsigned preview build. Download the .exe installer below. SmartScreen may warn on first install (unsigned build).'
+          releaseDraft: false
+          prerelease: false
+          args: --no-sign
